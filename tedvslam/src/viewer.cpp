@@ -10,13 +10,34 @@ namespace tedvslam
 
     Viewer::Viewer()
     {
-        viewer_thread_ = std::thread(std::bind(&Viewer::ThreadLoop, this));
+        // pangolin::CreateWindowAndBind("TEDVSLAM", 1024, 768);
+        // glEnable(GL_DEPTH_TEST);
+        // glEnable(GL_BLEND);
+        // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        // std::unique_lock<std::mutex> lock(viewer_data_mutex_);
+        // vis_camera_ = pangolin::OpenGlRenderState(
+        //     pangolin::ProjectionMatrix(1024, 768, 400, 400, 512, 384, 0.1, 1000),
+        //     pangolin::ModelViewLookAt(0, -5, -10, 0, 0, 0, 0.0, -1.0, 0.0));
+
+        // Add named OpenGL viewport to window and provide 3D Handler
+        // vis_display_ =
+        //     pangolin::CreateDisplay()
+        //         .SetBounds(0.0, 1.0, 0.0, 1.0, -1024.0f / 768.0f)
+        //         .SetHandler(new pangolin::Handler3D(vis_camera_));
+
+        // vis_display_ = &pangolin::CreateDisplay()
+        //                     .SetBounds(0.0, 1.0, 0.0, 1.0, -1024.0f / 768.0f)
+        //                     .SetHandler(new pangolin::Handler3D(vis_camera_));
+        // const float blue[3] = {0, 0, 1};
+        // const float green[3] = {0, 1, 0};
+
+        // viewer_thread_ = std::thread(std::bind(&Viewer::ThreadLoop, this));
     }
 
     void Viewer::Close()
     {
         viewer_running_ = false;
-        viewer_thread_.join();
+        // viewer_thread_.join();
     }
 
     void Viewer::AddCurrentFrame(Frame::Ptr current_frame)
@@ -29,63 +50,52 @@ namespace tedvslam
     {
         std::unique_lock<std::mutex> lck(viewer_data_mutex_);
         assert(map_ != nullptr);
-        active_keyframes_ = map_->GetActiveKeyFrames();
-        active_landmarks_ = map_->GetActiveMapPoints();
+        active_keyframes = map_->GetActiveKeyFrames();
+        active_landmarks = map_->GetActiveMapPoints();
         map_updated_ = true;
     }
 
-    void Viewer::ThreadLoop()
+    void Viewer::Show()
     {
-        pangolin::CreateWindowAndBind("TEDVSLAM", 1024, 768);
-        glEnable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        // spdlog::info("Start Show");
 
-        pangolin::OpenGlRenderState vis_camera(
-            pangolin::ProjectionMatrix(1024, 768, 400, 400, 512, 384, 0.1, 1000),
-            pangolin::ModelViewLookAt(0, -5, -10, 0, 0, 0, 0.0, -1.0, 0.0));
+        // if (!pangolin::ShouldQuit() && viewer_running_)
+        // {
+        //     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        //     vis_display_->Activate(vis_camera_);
 
-        // Add named OpenGL viewport to window and provide 3D Handler
-        pangolin::View &vis_display =
-            pangolin::CreateDisplay()
-                .SetBounds(0.0, 1.0, 0.0, 1.0, -1024.0f / 768.0f)
-                .SetHandler(new pangolin::Handler3D(vis_camera));
+        //     std::unique_lock<std::mutex> lock(viewer_data_mutex_);
+        //     if (current_frame_)
+        //     {
+        //         DrawFrame(current_frame_, green);
+        //         FollowCurrentFrame(vis_camera_);
 
-        const float blue[3] = {0, 0, 1};
-        const float green[3] = {0, 1, 0};
+        //         cv::Mat img = PlotFrameImage();
+        //         // You cannot use imshow and waitkey in another thread!!!!
+        //         cv::imshow("image", img);
+        //         cv::waitKey(1);
+        //     }
 
-        while (!pangolin::ShouldQuit() && viewer_running_)
-        {
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-            vis_display.Activate(vis_camera);
+        //     spdlog::info("End Showing Frame");
 
-            std::unique_lock<std::mutex> lock(viewer_data_mutex_);
-            if (current_frame_)
-            {
-                DrawFrame(current_frame_, green);
-                FollowCurrentFrame(vis_camera);
-
-                cv::Mat img = PlotFrameImage();
-                cv::imshow("image", img);
-                cv::waitKey(1);
-            }
-
-            if (map_)
-            {
-                DrawMapPoints();
-            }
-
-            pangolin::FinishFrame();
-            std::this_thread::sleep_for(std::chrono::microseconds(5000));
-            // std::this_thread::sleep_for(std::chrono::seconds(1));
-        }
+        //     if (map_)
+        //     {
+        //         DrawMapPoints();
+        //     }
+        //     spdlog::info("Start Finish Frame");
+        //     pangolin::FinishFrame();
+        //     std::this_thread::sleep_for(std::chrono::microseconds(5000));
+        //     // std::this_thread::sleep_for(std::chrono::seconds(1));
+        //     spdlog::info("Finish Show");
+        // }
 
         // LOG(INFO) << "Stop viewer";
     }
 
     cv::Mat Viewer::PlotFrameImage()
     {
+        spdlog::info("Plot Frame Image");
         cv::Mat img_out;
         cv::cvtColor(current_frame_->left_img_, img_out, cv::COLOR_GRAY2BGR);
         for (size_t i = 0; i < current_frame_->features_left_.size(); ++i)
@@ -97,6 +107,7 @@ namespace tedvslam
                            2);
             }
         }
+        spdlog::info("End plot Frame Image");
         return img_out;
     }
 
@@ -160,21 +171,23 @@ namespace tedvslam
 
     void Viewer::DrawMapPoints()
     {
-        const float red[3] = {1.0, 0, 0};
-        for (auto &kf : active_keyframes_)
-        {
-            DrawFrame(kf.second, red);
-        }
+        spdlog::info("Start Draw Map points");
+        // const float red[3] = {1.0, 0, 0};
+        // for (auto &kf : active_keyframes_)
+        // {
+        //     DrawFrame(kf.second, red);
+        // }
 
-        glPointSize(2);
-        glBegin(GL_POINTS);
-        for (auto &landmark : active_landmarks_)
-        {
-            auto pos = landmark.second->Pos();
-            glColor3f(red[0], red[1], red[2]);
-            glVertex3d(pos[0], pos[1], pos[2]);
-        }
-        glEnd();
+        // glPointSize(2);
+        // glBegin(GL_POINTS);
+        // for (auto &landmark : active_landmarks_)
+        // {
+        //     auto pos = landmark.second->Pos();
+        //     glColor3f(red[0], red[1], red[2]);
+        //     glVertex3d(pos[0], pos[1], pos[2]);
+        // }
+        // glEnd();
+        // spdlog::info("End Draw Map points");
     }
 
 } // namespace myslam

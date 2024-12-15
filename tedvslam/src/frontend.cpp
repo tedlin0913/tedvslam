@@ -24,7 +24,10 @@ namespace tedvslam
         gftt_ =
             cv::GFTTDetector::create(Config::Get<int>("num_features"), 0.01, 20);
         num_features_init_ = Config::Get<int>("num_features_init");
+
         num_features_ = Config::Get<int>("num_features");
+        spdlog::info("Features init: {}", num_features_init_);
+        spdlog::info("Features num: {}", num_features_);
     }
 
     bool Frontend::AddFrame(tedvslam::Frame::Ptr frame)
@@ -59,6 +62,7 @@ namespace tedvslam
         int num_track_last = TrackLastFrame();
         tracking_inliers_ = EstimateCurrentPose();
 
+        // Three status according to settings.
         if (tracking_inliers_ > num_features_tracking_)
         {
             // tracking good
@@ -94,6 +98,7 @@ namespace tedvslam
         current_frame_->SetKeyFrame();
         map_->InsertKeyFrame(current_frame_);
 
+        spdlog::info("Set frame {} as KF {}", current_frame_->id_, current_frame_->keyframe_id_);
         // rclcpp::RCLCPP_INFO(rclcpp::get_logger("global_logger"), "Set frame %d as keyframe %d",
         // current_frame_->id_, current_frame_->keyframe_id_);
 
@@ -161,7 +166,7 @@ namespace tedvslam
             }
         }
         // rclcpp::RCLCPP_INFO(rclcpp::get_logger("global_logger") this->get_logger(), "New landmarks: %d", cnt_triangulated_pts);
-
+        spdlog::info("New Landmarks: {} ", cnt_triangulated_pts);
         // LOG(INFO) << "new landmarks: " << cnt_triangulated_pts;
         return cnt_triangulated_pts;
     }
@@ -173,6 +178,7 @@ namespace tedvslam
         typedef g2o::LinearSolverDense<BlockSolverType::PoseMatrixType>
             LinearSolverType;
 
+        // spdlog::info("");
         std::unique_ptr<LinearSolverType> linearSolver(new LinearSolverType);
         std::unique_ptr<BlockSolverType> solver_ptr(new BlockSolverType(std::move(linearSolver)));
         g2o::OptimizationAlgorithmLevenberg *solver = new g2o::OptimizationAlgorithmLevenberg(std::move(solver_ptr));
@@ -253,6 +259,9 @@ namespace tedvslam
             }
         }
 
+        spdlog::info("Outlier/Inlier in pose estimating: {}/{}",
+                     cnt_outlier,
+                     features.size() - cnt_outlier);
         // LOG(INFO) << "Outlier/Inlier in pose estimating: " << cnt_outlier << "/"
         //           << features.size() - cnt_outlier;
         // Set pose and outlier
@@ -324,6 +333,7 @@ namespace tedvslam
             }
         }
         //
+        spdlog::info("Find: {} in LEFT", num_good_pts);
         // LOG(INFO) << "Find " << num_good_pts << " in the last image.";
         return num_good_pts;
     }
@@ -348,6 +358,7 @@ namespace tedvslam
             }
             return true;
         }
+        spdlog::info("Stereo initialized");
         return false;
     }
 
@@ -369,7 +380,7 @@ namespace tedvslam
                 Feature::Ptr(new Feature(current_frame_, kp)));
             cnt_detected++;
         }
-
+        spdlog::info("Detect {} features", cnt_detected);
         // LOG(INFO) << "Detect " << cnt_detected << " new features";
         return cnt_detected;
     }
@@ -421,6 +432,7 @@ namespace tedvslam
                 current_frame_->features_right_.push_back(nullptr);
             }
         }
+        spdlog::info("Find: {} in RIGHT", num_good_pts);
         // LOG(INFO) << "Find " << num_good_pts << " in the right image.";
         return num_good_pts;
     }
@@ -459,6 +471,7 @@ namespace tedvslam
         map_->InsertKeyFrame(current_frame_);
         backend_->UpdateMap();
 
+        spdlog::info("Initial map created with:{} map points", cnt_init_landmarks);
         // LOG(INFO) << "Initial map created with " << cnt_init_landmarks
         //           << " map points";
 

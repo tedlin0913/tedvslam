@@ -35,8 +35,13 @@ namespace tedvslam
          */
         bool Step();
 
+        void DrawFrame(Frame::Ptr frame, const float *color);
+
         /// get frontend status
-        FrontendStatus GetFrontendStatus() const { return frontend_->GetStatus(); }
+        FrontendStatus GetFrontendStatus() const
+        {
+            return frontend_->GetStatus();
+        }
 
     private:
         bool inited_ = false;
@@ -49,6 +54,18 @@ namespace tedvslam
 
         // dataset
         Dataset::Ptr dataset_ = nullptr;
+
+        // Frame::Ptr current_frame_ = nullptr;
+        // Map::Ptr map_ = nullptr;
+
+        // // std::thread viewer_thread_;
+        // bool viewer_running_ = true;
+
+        // std::unordered_map<unsigned long, Frame::Ptr> active_keyframes_;
+        // std::unordered_map<unsigned long, MapPoint::Ptr> active_landmarks_;
+        // bool map_updated_ = false;
+
+        // std::mutex viewer_data_mutex_;
     };
 } // namespace tedvslam
 

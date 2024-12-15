@@ -3,6 +3,7 @@
 #define CONFIG_H
 
 #include "tedvslam/common_include.h"
+#include <yaml-cpp/yaml.h>
 
 namespace tedvslam
 {
@@ -10,9 +11,12 @@ namespace tedvslam
     {
     private:
         static std::shared_ptr<Config> config_;
-        cv::FileStorage file_;
+        // cv::FileStorage file_;
+        YAML::Node file_;
 
-        Config() {} // private constructor makes a singleton
+        Config()
+        {
+        } // private constructor makes a singleton
     public:
         ~Config(); // close the file when deconstructing
 
@@ -23,7 +27,7 @@ namespace tedvslam
         template <typename T>
         static T Get(const std::string &key)
         {
-            return T(Config::config_->file_[key]);
+            return T(Config::config_->file_[key].as<T>());
         }
     };
 } // namespace tedvslam

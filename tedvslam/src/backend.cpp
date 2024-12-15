@@ -193,6 +193,7 @@ namespace tedvslam
             }
         }
 
+        spdlog::info("BACKEND: Out/In {}/{} ", cnt_outlier, cnt_inlier);
         // LOG(INFO) << "Outlier/Inlier in optimization: " << cnt_outlier << "/"
         //           << cnt_inlier;
 

@@ -30,12 +30,24 @@ namespace tedvslam
         // add a frame
         void AddCurrentFrame(Frame::Ptr current_frame);
 
+        Frame::Ptr getCurrentFrame()
+        {
+            return current_frame_;
+        }
+        Map::Ptr getMap()
+        {
+            return map_;
+        }
+
         // update map
         void UpdateMap();
 
-    private:
-        void ThreadLoop();
+        void Show();
 
+        std::unordered_map<unsigned long, Frame::Ptr> active_keyframes;
+        std::unordered_map<unsigned long, MapPoint::Ptr> active_landmarks;
+
+    private:
         void DrawFrame(Frame::Ptr frame, const float *color);
 
         void DrawMapPoints();
@@ -48,14 +60,20 @@ namespace tedvslam
         Frame::Ptr current_frame_ = nullptr;
         Map::Ptr map_ = nullptr;
 
-        std::thread viewer_thread_;
+        // std::thread viewer_thread_;
         bool viewer_running_ = true;
 
-        std::unordered_map<unsigned long, Frame::Ptr> active_keyframes_;
-        std::unordered_map<unsigned long, MapPoint::Ptr> active_landmarks_;
+        // std::unordered_map<unsigned long, Frame::Ptr> active_keyframes_;
+        // std::unordered_map<unsigned long, MapPoint::Ptr> active_landmarks_;
         bool map_updated_ = false;
 
         std::mutex viewer_data_mutex_;
+
+        // pangolin::OpenGlRenderState vis_camera_;
+        // pangolin::View &vis_display_;
+        // std::shared_ptr<pangolin::View> vis_display_;
+        // pangolin::View *vis_display_; // Use raw pointer
+        // const float green[3] = {0, 1, 0};
     };
 } // namespace tedvslam
 

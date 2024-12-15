@@ -35,9 +35,9 @@ namespace tedvslam
             _estimate = SE3::exp(update_eigen) * _estimate;
         }
 
-        virtual bool read(std::istream &in) override { return true; }
+        virtual bool read(std::istream &[[maybe_unused]] in) override { return true; }
 
-        virtual bool write(std::ostream &out) const override { return true; }
+        virtual bool write(std::ostream &[[maybe_unused]] out) const override { return true; }
     };
 
     /// vertex for waypoint
@@ -54,9 +54,9 @@ namespace tedvslam
             _estimate[2] += update[2];
         }
 
-        virtual bool read(std::istream &in) override { return true; }
+        virtual bool read(std::istream &[[maybe_unused]] in) override { return true; }
 
-        virtual bool write(std::ostream &out) const override { return true; }
+        virtual bool write(std::ostream &[[maybe_unused]] out) const override { return true; }
     };
 
     /// only estimate edge
@@ -95,9 +95,9 @@ namespace tedvslam
                 -fy * X * Zinv;
         }
 
-        virtual bool read(std::istream &in) override { return true; }
+        virtual bool read(std::istream &[[maybe_unused]] in) override { return true; }
 
-        virtual bool write(std::ostream &out) const override { return true; }
+        virtual bool write(std::ostream &[[maybe_unused]] out) const override { return true; }
 
     private:
         Vec3 _pos3d;
@@ -150,9 +150,9 @@ namespace tedvslam
                                _cam_ext.rotationMatrix() * T.rotationMatrix();
         }
 
-        virtual bool read(std::istream &in) override { return true; }
+        virtual bool read(std::istream &[[maybe_unused]] in) override { return true; }
 
-        virtual bool write(std::ostream &out) const override { return true; }
+        virtual bool write(std::ostream &[[maybe_unused]] out) const override { return true; }
 
     private:
         Mat33 _K;

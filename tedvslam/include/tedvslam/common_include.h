@@ -17,6 +17,9 @@
 #include <unordered_map>
 #include <vector>
 
+// logging
+#include <spdlog/spdlog.h>
+
 // define the commonly included file to avoid a long include list
 #include <Eigen/Core>
 #include <Eigen/Geometry>
