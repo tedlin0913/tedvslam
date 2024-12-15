@@ -1,2 +1,6 @@
-3rdparty/
+3rdParty/
 tmp/
+build/
+install/
+log/
+data/
