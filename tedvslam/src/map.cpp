@@ -1,123 +1,171 @@
 #include "tedvslam/map.h"
-#include "tedvslam/feature.h"
 
 namespace tedvslam
 {
 
-    void Map::InsertKeyFrame(Frame::Ptr frame)
+    Map::Map()
     {
-        current_frame_ = frame;
-        if (keyframes_.find(frame->keyframe_id_) == keyframes_.end())
-        {
-            keyframes_.insert(make_pair(frame->keyframe_id_, frame));
-            active_keyframes_.insert(make_pair(frame->keyframe_id_, frame));
-        }
-        else
-        {
-            keyframes_[frame->keyframe_id_] = frame;
-            active_keyframes_[frame->keyframe_id_] = frame;
-        }
-
-        if (active_keyframes_.size() > num_active_keyframes_)
-        {
-            RemoveOldKeyframe();
-        }
+        num_active_keyframes_ = Config::Get<int>("Map.activeMap.size").value_or(0);
     }
 
-    void Map::InsertMapPoint(MapPoint::Ptr map_point)
+    void Map::InsertKeyFrame(const std::shared_ptr<KeyFrame> &keyframe)
     {
-        if (landmarks_.find(map_point->id_) == landmarks_.end())
+        spdlog::info("insert kf to map");
+        current_keyframe_ = keyframe;
         {
-            landmarks_.insert(make_pair(map_point->id_, map_point));
-            active_landmarks_.insert(make_pair(map_point->id_, map_point));
+            std::unique_lock<std::mutex> lock(data_mutex_);
+            if (all_keyframes_.find(keyframe->keyframe_id_) == all_keyframes_.end())
+            {
+                all_keyframes_[keyframe->keyframe_id_] = keyframe;
+                active_keyframes_[keyframe->keyframe_id_] = keyframe;
+            }
+            else
+            {
+                all_keyframes_[keyframe->keyframe_id_] = keyframe;
+                active_keyframes_[keyframe->keyframe_id_] = keyframe;
+            }
         }
-        else
+
+        for (const auto &feature : keyframe->features_left_)
         {
-            landmarks_[map_point->id_] = map_point;
-            active_landmarks_[map_point->id_] = map_point;
+            auto map_point = feature->map_point_.lock();
+            if (map_point)
+            {
+                map_point->AddActiveObservation(feature);
+                InsertActiveMapPoint(map_point);
+            }
         }
+        spdlog::info("start remove old frames");
+        if (active_keyframes_.size() > static_cast<size_t>(num_active_keyframes_))
+        {
+            RemoveOldActiveKeyframe();
+            RemoveOldActiveMapPoints();
+        }
+        spdlog::info("done remove old frames");
     }
 
-    void Map::RemoveOldKeyframe()
+    void Map::InsertMapPoint(const std::shared_ptr<MapPoint> &map_point)
     {
-        if (current_frame_ == nullptr)
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        all_map_points_[map_point->id_] = map_point;
+    }
+
+    void Map::InsertActiveMapPoint(const std::shared_ptr<MapPoint> &map_point)
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        active_map_points_[map_point->id_] = map_point;
+    }
+
+    void Map::RemoveOldActiveKeyframe()
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+
+        if (!current_keyframe_)
             return;
-        // 寻找与当前帧最近与最远的两个关键帧
-        double max_dis = 0, min_dis = 9999;
-        double max_kf_id = 0, min_kf_id = 0;
-        auto Twc = current_frame_->Pose().inverse();
-        for (auto &kf : active_keyframes_)
+
+        double max_distance = 0, min_distance = 9999;
+        unsigned long max_kf_id = 0, min_kf_id = 0;
+
+        auto current_pose_inv = current_keyframe_->Pose().inverse();
+        for (const auto &keyframe : active_keyframes_)
         {
-            if (kf.second == current_frame_)
+            if (keyframe.second == current_keyframe_)
                 continue;
-            auto dis = (kf.second->Pose() * Twc).log().norm();
-            if (dis > max_dis)
+
+            double distance = (keyframe.second->Pose() * current_pose_inv).log().norm();
+            if (distance > max_distance)
             {
-                max_dis = dis;
-                max_kf_id = kf.first;
+                max_distance = distance;
+                max_kf_id = keyframe.first;
             }
-            if (dis < min_dis)
+            else if (distance < min_distance)
             {
-                min_dis = dis;
-                min_kf_id = kf.first;
+                min_distance = distance;
+                min_kf_id = keyframe.first;
             }
         }
 
-        const double min_dis_th = 0.2; // 最近阈值
-        Frame::Ptr frame_to_remove = nullptr;
-        if (min_dis < min_dis_th)
-        {
-            // 如果存在很近的帧，优先删掉最近的
-            frame_to_remove = keyframes_.at(min_kf_id);
-        }
-        else
-        {
-            // 删掉最远的
-            frame_to_remove = keyframes_.at(max_kf_id);
-        }
+        const double min_distance_threshold = 0.2;
+        auto frame_to_remove = (min_distance < min_distance_threshold)
+                                   ? active_keyframes_[min_kf_id]
+                                   : active_keyframes_[max_kf_id];
 
-        // LOG(INFO) << "remove keyframe " << frame_to_remove->keyframe_id_;
-        // remove keyframe and landmark observation
         active_keyframes_.erase(frame_to_remove->keyframe_id_);
-        for (auto feat : frame_to_remove->features_left_)
+        for (const auto &feature : frame_to_remove->features_left_)
         {
-            auto mp = feat->map_point_.lock();
-            if (mp)
+            auto map_point = feature->map_point_.lock();
+            if (map_point)
             {
-                mp->RemoveObservation(feat);
+                map_point->RemoveActiveObservation(feature);
             }
         }
-        for (auto feat : frame_to_remove->features_right_)
-        {
-            if (feat == nullptr)
-                continue;
-            auto mp = feat->map_point_.lock();
-            if (mp)
-            {
-                mp->RemoveObservation(feat);
-            }
-        }
-
-        CleanMap();
     }
 
-    void Map::CleanMap()
+    void Map::RemoveOldActiveMapPoints()
     {
-        int cnt_landmark_removed = 0;
-        for (auto iter = active_landmarks_.begin();
-             iter != active_landmarks_.end();)
+        std::unique_lock<std::mutex> lock(data_mutex_);
+
+        for (auto iter = active_map_points_.begin(); iter != active_map_points_.end();)
         {
-            if (iter->second->observed_times_ == 0)
+            if (iter->second->active_observed_times_ == 0)
             {
-                iter = active_landmarks_.erase(iter);
-                cnt_landmark_removed++;
+                iter = active_map_points_.erase(iter);
             }
             else
             {
                 ++iter;
             }
         }
-        // LOG(INFO) << "Removed " << cnt_landmark_removed << " active landmarks";
+    }
+
+    void Map::RemoveMapPoint(const std::shared_ptr<MapPoint> &map_point)
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        all_map_points_.erase(map_point->id_);
+        active_map_points_.erase(map_point->id_);
+    }
+
+    void Map::AddOutlierMapPoint(unsigned long map_point_id)
+    {
+        std::unique_lock<std::mutex> lock(outlier_map_point_mutex_);
+        outlier_map_points_.push_back(map_point_id);
+    }
+
+    void Map::RemoveAllOutlierMapPoints()
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        std::unique_lock<std::mutex> lock_outlier(outlier_map_point_mutex_);
+
+        for (const auto &map_point_id : outlier_map_points_)
+        {
+            all_map_points_.erase(map_point_id);
+            active_map_points_.erase(map_point_id);
+        }
+        outlier_map_points_.clear();
+    }
+
+    Map::MapPointsType Map::GetAllMapPoints()
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        return all_map_points_;
+    }
+
+    Map::KeyFramesType Map::GetAllKeyFrames()
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        return all_keyframes_;
+    }
+
+    Map::MapPointsType Map::GetActiveMapPoints()
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        return active_map_points_;
+    }
+
+    Map::KeyFramesType Map::GetActiveKeyFrames()
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        return active_keyframes_;
     }
 
 } // namespace tedvslam

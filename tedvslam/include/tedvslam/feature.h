@@ -10,28 +10,34 @@
 namespace tedvslam
 {
 
-    struct Frame;
-    struct MapPoint;
+    class Frame;
+    class MapPoint;
+    class KeyFrame;
 
-    /// @brief 2D feature point object
-    struct Feature
+    class Feature
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        typedef std::shared_ptr<Feature> Ptr;
+        using Ptr = std::shared_ptr<Feature>;
 
-        std::weak_ptr<Frame> frame_;        // frame which the feature reside
-        cv::KeyPoint position_;             // position of the feature
-        std::weak_ptr<MapPoint> map_point_; // related map point
+        Feature() = default;
 
-        bool is_outlier_ = false;      // flag for outlier
-        bool is_on_left_image_ = true; // left or right image
+        explicit Feature(const cv::KeyPoint &keypoint);
+
+        Feature(const std::shared_ptr<KeyFrame> &keyframe, const cv::KeyPoint &keypoint);
+
+        static Ptr Create(const cv::KeyPoint &keypoint);
+
+        static Ptr Create(const std::shared_ptr<KeyFrame> &keyframe, const cv::KeyPoint &keypoint);
 
     public:
-        Feature() {}
+        std::weak_ptr<KeyFrame> keyframe_;
+        cv::KeyPoint keypoint_;                       // Keypoint position
+        std::vector<cv::KeyPoint> pyramid_keypoints_; // Pyramid keypoints
+        std::weak_ptr<MapPoint> map_point_;           // Associated map point
 
-        Feature(std::shared_ptr<Frame> frame, const cv::KeyPoint &kp)
-            : frame_(frame), position_(kp) {}
+        bool is_on_left_frame_ = true; // True: on left frame; False: on right frame
+        bool is_outlier_ = false;      // Outlier flag
     };
 } // namespace myslam
 

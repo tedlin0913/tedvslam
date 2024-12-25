@@ -2,18 +2,35 @@
 #ifndef FRONTEND_H
 #define FRONTEND_H
 
+#include <memory>
+
+#include <opencv2/opencv.hpp>
 #include <opencv2/features2d.hpp>
 
 #include "tedvslam/common_include.h"
+#include "tedvslam/g2o_types.h"
 #include "tedvslam/frame.h"
 #include "tedvslam/map.h"
+#include "tedvslam/backend.h"
+#include "tedvslam/config.h"
+#include "tedvslam/ORBextractor.h"
+#include "tedvslam/viewer.h"
+#include "tedvslam/camera.h"
+#include "tedvslam/keyframe.h"
+#include "tedvslam/feature.h"
+#include "tedvslam/algorithm.h"
 
 namespace tedvslam
 {
-
-    class Backend;
+    class Frame;
     class Viewer;
+    class ORBextractor;
+    class Camera;
+    class Map;
+    class Backend;
+    class KeyFrame;
 
+    // Four tracking statuses
     enum class FrontendStatus
     {
         INITING,
@@ -22,136 +39,121 @@ namespace tedvslam
         LOST
     };
 
-    /// @brief Estimate pose, if frame can be a keyframe, trigger optimization
     class Frontend
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        typedef std::shared_ptr<Frontend> Ptr;
+        using Ptr = std::shared_ptr<Frontend>;
 
         Frontend();
 
-        /// Add a frame and calculated posse
         bool AddFrame(Frame::Ptr frame);
 
-        /// Set map
-        void SetMap(Map::Ptr map) { map_ = map; }
+        // Process new pair of images
+        // Returns true if it runs normally.
+        // bool GrabStereoImage(const cv::Mat &left_img, const cv::Mat &right_img, double timestamp);
 
-        /// @brief set backend
-        /// @param backend
-        void SetBackend(std::shared_ptr<Backend> backend) { backend_ = backend; }
+        void SetViewer(std::shared_ptr<Viewer> viewer)
+        {
+            viewer_ = viewer;
+        }
 
-        /// @brief Set viewer
-        /// @param viewer
-        void SetViewer(std::shared_ptr<Viewer> viewer) { viewer_ = viewer; }
-
-        /// @brief Get frontend status
-        /// @return
-        FrontendStatus GetStatus() const { return status_; }
-
-        void SetCameras(Camera::Ptr left, Camera::Ptr right)
+        void SetCameras(std::shared_ptr<Camera> left, std::shared_ptr<Camera> right)
         {
             camera_left_ = left;
             camera_right_ = right;
         }
 
-    private:
-        /**
-         * Track in normal mode
-         * @return true if success
-         */
-        bool Track();
+        void SetMap(std::shared_ptr<Map> map)
+        {
+            map_ = map;
+        }
 
-        /**
-         * Reset when lost
-         * @return true if success
-         */
-        bool Reset();
+        void SetBackend(std::shared_ptr<Backend> backend)
+        {
+            backend_ = backend;
+        }
 
-        /**
-         * Track with last frame
-         * @return num of tracked points
-         */
-        int TrackLastFrame();
+        void SetORBextractor(std::shared_ptr<ORBextractor> orb)
+        {
+            orb_extractor_ = orb;
+        }
 
-        /**
-         * estimate current frame's pose
-         * @return num of inliers
-         */
-        int EstimateCurrentPose();
+        FrontendStatus GetStatus() const
+        {
+            return status_;
+        }
 
-        /**
-         * set current frame as a keyframe and insert it into backend
-         * @return true if success
-         */
-        bool InsertKeyframe();
-
-        /**
-         * Try init the frontend with stereo images saved in current_frame_
-         * @return true if success
-         */
-        bool StereoInit();
-
-        /**
-         * Detect features in left image in current_frame_
-         * keypoints will be saved in current_frame_
-         * @return
-         */
-        int DetectFeatures();
-
-        /**
-         * Find the corresponding features in right image of current_frame_
-         * @return num of features found
-         */
-        int FindFeaturesInRight();
-
-        /**
-         * Build the initial map with single image
-         * @return true if succeed
-         */
-        bool BuildInitMap();
-
-        /**
-         * Triangulate the 2D points in current frame
-         * @return num of triangulated points
-         */
-        int TriangulateNewPoints();
-
-        /**
-         * Set the features in keyframe as new observation of the map points
-         */
         void SetObservationsForKeyFrame();
 
-        // data
+    private:
+        // Tracking initialization. Returns true if successful.
+        bool StereoInit();
+
+        // Build the initial map. Returns true if successful.
+        bool BuildInitMap();
+
+        // Standard tracking. Returns true if successful.
+        bool Track();
+
+        // Estimate the current frame's pose using motion model.
+        // Returns the number of good tracked points.
+        int TrackLastFrame();
+
+        // Optimize the current frame's pose using g2o.
+        // Returns the inlier numbers.
+        int EstimateCurrentPose();
+
+        // Detect new features in the current image (left).
+        // Returns the number of features.
+        int DetectFeatures();
+
+        // Find the corresponding features in the right image of the current frame.
+        // Returns the number of corresponding features found.
+        int FindFeaturesInRight();
+
+        // Create a new keyframe (based on the current frame) and update.
+        // Returns true if successful.
+        bool InsertKeyFrame();
+
+        // Create new map points and insert them into the map.
+        // Returns the number of new map points created.
+        int TriangulateNewPoints();
+
+        // Reset
+        bool Reset();
+
+        std::shared_ptr<ORBextractor> orb_extractor_, orb_extractor_init_;
+        std::shared_ptr<Camera> camera_left_, camera_right_;
+        std::shared_ptr<Map> map_;
+        std::shared_ptr<Backend> backend_;
+        std::shared_ptr<Viewer> viewer_;
+
         FrontendStatus status_ = FrontendStatus::INITING;
 
-        Frame::Ptr current_frame_ = nullptr; // current frame
-        Frame::Ptr last_frame_ = nullptr;    // last frame
-        Camera::Ptr camera_left_ = nullptr;  // left cam
-        Camera::Ptr camera_right_ = nullptr; // right cam
+        std::shared_ptr<Frame> current_frame_;
+        std::shared_ptr<Frame> last_frame_;
+        std::shared_ptr<KeyFrame> reference_kf_;
 
-        Map::Ptr map_ = nullptr;
-        std::shared_ptr<Backend> backend_ = nullptr;
-        std::shared_ptr<Viewer> viewer_ = nullptr;
-
-        /// relative motion between current frame and last frame
-        /// used to estimate initial param of current frame
         SE3 relative_motion_;
+        SE3 relative_motion_to_reference_kf_;
 
-        /// testing new keyframes
-        int tracking_inliers_ = 0;
+        cv::Mat dist_coeffs0_, dist_coeffs1_;
 
-        // params
-        int num_features_ = 200;
-        int num_features_init_ = 100;
-        int num_features_tracking_ = 50;
-        int num_features_tracking_bad_ = 20;
-        int num_features_needed_for_keyframe_ = 80;
+        int num_features_tracking_good_;
+        int num_features_tracking_bad_;
+        int num_features_init_good_;
 
-        // utilities
-        cv::Ptr<cv::GFTTDetector> gftt_; // feature detector in opencv
+        bool need_undistortion_;
+
+        int tracking_inliers_;
+
+        int num_features_init_;
+
+        cv::Ptr<cv::ORB> orb_;
+
+        cv::Ptr<cv::GFTTDetector> gftt_;
     };
-
 } // namespace tedvslam
 
 #endif // FRONTEND_H

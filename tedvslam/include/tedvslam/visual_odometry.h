@@ -2,6 +2,8 @@
 #ifndef VISUAL_ODOMETRY_H
 #define VISUAL_ODOMETRY_H
 
+#include <thread>
+
 #include "tedvslam/backend.h"
 #include "tedvslam/common_include.h"
 #include "tedvslam/dataset.h"
@@ -36,6 +38,11 @@ namespace tedvslam
         bool Step();
 
         void DrawFrame(Frame::Ptr frame, const float *color);
+        void DrawFrame(KeyFrame::Ptr frame, const float *color);
+        void DrawMapPoints();
+
+        void FollowCurrentFrame(pangolin::OpenGlRenderState &vis_camera);
+        cv::Mat PlotFrameImage();
 
         /// get frontend status
         FrontendStatus GetFrontendStatus() const
@@ -54,6 +61,7 @@ namespace tedvslam
 
         // dataset
         Dataset::Ptr dataset_ = nullptr;
+        // std::mutex viewer_data_mutex_;
 
         // Frame::Ptr current_frame_ = nullptr;
         // Map::Ptr map_ = nullptr;

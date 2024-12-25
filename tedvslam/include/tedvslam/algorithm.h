@@ -15,7 +15,7 @@ namespace tedvslam
      * @return true if success
      */
     inline bool triangulation(const std::vector<SE3> &poses,
-                              const std::vector<Vec3> points, Vec3 &pt_world)
+                              const std::vector<Vec3> &points, Vec3 &pt_world)
     {
         MatXX A(2 * poses.size(), 4);
         VecX b(2 * poses.size());
@@ -29,7 +29,7 @@ namespace tedvslam
         auto svd = A.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV);
         pt_world = (svd.matrixV().col(3) / svd.matrixV()(3, 3)).head<3>();
 
-        if (svd.singularValues()[3] / svd.singularValues()[2] < 1e-2)
+        if (svd.singularValues()[3] / svd.singularValues()[2] < 1)
         {
             return true;
         }
@@ -39,6 +39,35 @@ namespace tedvslam
     // converters
     inline Vec2 toVec2(const cv::Point2f p) { return Vec2(p.x, p.y); }
 
+    inline Vec3 toVec3(const cv::Point3f p)
+    {
+        return Vec3(p.x, p.y, p.z);
+    }
+
+    // template <typename T>
+    // inline std::pair<T, T> VectorMeanAndVariance(const std::vector<T> &v)
+    // {
+    //     // Ensure the vector is not empty to avoid division by zero
+    //     if (v.empty())
+    //     {
+    //         throw std::invalid_argument("The input vector is empty.");
+    //     }
+
+    //     // Calculate the mean
+    //     T sum = std::accumulate(v.begin(), v.end(), static_cast<T>(0));
+    //     T mean = sum / static_cast<T>(v.size());
+
+    //     // Calculate the variance
+    //     T accum = 0;
+    //     std::for_each(v.begin(), v.end(), [&](const T &value)
+    //                   { accum += (value - mean) * (value - mean); });
+
+    //     // Using (n - 1) for an unbiased estimator (sample standard deviation)
+    //     T variance = accum / static_cast<T>(v.size() - 1);
+    //     T stddev = std::sqrt(variance);
+
+    //     return {mean, stddev};
+    // }
 } // namespace tedvslam
 
 #endif // ALGORITHM_H

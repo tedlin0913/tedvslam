@@ -1,45 +1,36 @@
 #ifndef DATASET_H
 #define DATASET_H
-#include "tedvslam/camera.h"
-#include "tedvslam/common_include.h"
-#include "tedvslam/frame.h"
-#include "csv.h"
+
+#include "tedvslam/datasetbase.h"
+
 namespace tedvslam
 {
 
     /// @brief Where I should read camera frame.
-    class Dataset
+    class Dataset : public DatasetBase
     {
-        struct CSVRow
-        {
-            std::string timestamp;
-            std::string filename;
-        };
 
     public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        typedef std::shared_ptr<Dataset> Ptr;
-        Dataset(const std::string &dataset_path);
+        Dataset(const std::string &dataset_path)
+            : DatasetBase(dataset_path) {}
 
         // initialize
-        bool Init();
+        bool Init() override;
 
         /// create and return the next frame containing the stereo images
-        Frame::Ptr NextFrame();
+        Frame::Ptr NextFrame() override;
 
-        /// get camera by id
-        Camera::Ptr GetCamera(int camera_id) const
+        Camera::Ptr GetCamera(int camera_id) const override
         {
-            return cameras_.at(camera_id);
+            if (camera_id >= 0 && camera_id < static_cast<int>(cameras_.size()))
+                return cameras_[camera_id];
+            else
+                throw std::out_of_range("Camera ID is out of range");
         }
 
     private:
-        std::string dataset_path_;
-        int current_image_index_ = 0;
         std::shared_ptr<io::CSVReader<2>> left_reader_;
         std::shared_ptr<io::CSVReader<2>> right_reader_;
-
-        std::vector<Camera::Ptr> cameras_;
     };
 } // namespace tedvslam
 

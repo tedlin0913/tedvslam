@@ -4,30 +4,72 @@
 namespace tedvslam
 {
 
-    MapPoint::MapPoint(long id, Vec3 position) : id_(id), pos_(position) {}
-
-    MapPoint::Ptr MapPoint::CreateNewMappoint()
+    MapPoint::MapPoint(unsigned long id, const Vec3 &position)
     {
-        static long factory_id = 0;
-        MapPoint::Ptr new_mappoint(new MapPoint);
-        new_mappoint->id_ = factory_id++;
-        return new_mappoint;
+        position_ = position;
+        id_ = id;
     }
 
-    void MapPoint::RemoveObservation(std::shared_ptr<Feature> feat)
+    MapPoint::Ptr MapPoint::Create(const Vec3 &position)
     {
-        std::unique_lock<std::mutex> lck(data_mutex_);
-        for (auto iter = observations_.begin(); iter != observations_.end();
-             iter++)
+        static unsigned long factory_id = 0;
+        auto new_map_point = std::make_shared<MapPoint>(factory_id++, position);
+        return new_map_point;
+    }
+
+    void MapPoint::AddObservation(const std::shared_ptr<Feature> &feature)
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        observations_.push_back(feature);
+        observed_times_++;
+    }
+
+    void MapPoint::AddActiveObservation(const std::shared_ptr<Feature> &feature)
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        active_observations_.push_back(feature);
+        active_observed_times_++;
+    }
+
+    void MapPoint::RemoveActiveObservation(const std::shared_ptr<Feature> &feature)
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        for (auto iter = active_observations_.begin(); iter != active_observations_.end(); ++iter)
         {
-            if (iter->lock() == feat)
+            if (iter->lock() == feature)
+            {
+                active_observations_.erase(iter);
+                active_observed_times_--;
+                break;
+            }
+        }
+    }
+
+    void MapPoint::RemoveObservation(const std::shared_ptr<Feature> &feature)
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        for (auto iter = observations_.begin(); iter != observations_.end(); ++iter)
+        {
+            if (iter->lock() == feature)
             {
                 observations_.erase(iter);
-                feat->map_point_.reset();
+                feature->map_point_.reset();
                 observed_times_--;
                 break;
             }
         }
+    }
+
+    std::list<std::weak_ptr<Feature>> MapPoint::GetActiveObservations() const
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        return active_observations_;
+    }
+
+    std::list<std::weak_ptr<Feature>> MapPoint::GetObservations() const
+    {
+        std::unique_lock<std::mutex> lock(data_mutex_);
+        return observations_;
     }
 
 } // namespace tedvslam

@@ -5,71 +5,81 @@
 #include "tedvslam/common_include.h"
 #include "tedvslam/frame.h"
 #include "tedvslam/mappoint.h"
+#include "tedvslam/keyframe.h"
+#include "tedvslam/feature.h"
+#include "tedvslam/config.h"
+
+#include <optional>
 
 namespace tedvslam
 {
+    class KeyFrame;
+    class Frame;
+    class MapPoint;
 
-    /// Interaction with fronend: InsertKeyframe and InsertMapPoint
-    /// Backend: check and remove outliers
     class Map
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        typedef std::shared_ptr<Map> Ptr;
-        typedef std::unordered_map<unsigned long, MapPoint::Ptr> LandmarksType;
-        typedef std::unordered_map<unsigned long, Frame::Ptr> KeyframesType;
+        using Ptr = std::shared_ptr<Map>;
+        using KeyFramesType = std::unordered_map<unsigned long, std::shared_ptr<KeyFrame>>;
+        using MapPointsType = std::unordered_map<unsigned long, std::shared_ptr<MapPoint>>;
 
-        Map() {}
+        Map();
 
-        /// add a keyframe to map
-        void InsertKeyFrame(Frame::Ptr frame);
-        /// add a map point to map
-        void InsertMapPoint(MapPoint::Ptr map_point);
+        // Insert a new keyframe into the map and active keyframes
+        void InsertKeyFrame(const std::shared_ptr<KeyFrame> &keyframe);
 
-        /// all mappoints
-        LandmarksType GetAllMapPoints()
-        {
-            std::unique_lock<std::mutex> lck(data_mutex_);
-            return landmarks_;
-        }
-        /// all keyframes
-        KeyframesType GetAllKeyFrames()
-        {
-            std::unique_lock<std::mutex> lck(data_mutex_);
-            return keyframes_;
-        }
+        // Remove map points not observed by any active keyframe
+        void RemoveOldActiveMapPoints();
 
-        /// active map points
-        LandmarksType GetActiveMapPoints()
-        {
-            std::unique_lock<std::mutex> lck(data_mutex_);
-            return active_landmarks_;
-        }
+        // Remove old keyframes from the active keyframes
+        void RemoveOldActiveKeyframe();
 
-        /// get active key frames
-        KeyframesType GetActiveKeyFrames()
-        {
-            std::unique_lock<std::mutex> lck(data_mutex_);
-            return active_keyframes_;
-        }
+        // Insert a new map point into the map
+        void InsertMapPoint(const std::shared_ptr<MapPoint> &map_point);
 
-        /// clean up the map
-        void CleanMap();
+        // Insert a new active map point into the map
+        void InsertActiveMapPoint(const std::shared_ptr<MapPoint> &map_point);
+
+        // Remove a map point from the map
+        void RemoveMapPoint(const std::shared_ptr<MapPoint> &map_point);
+
+        // Add an outlier map point to the list for later removal
+        void AddOutlierMapPoint(unsigned long map_point_id);
+
+        // Remove all outlier map points from the map
+        void RemoveAllOutlierMapPoints();
+
+        // Retrieve all map points
+        MapPointsType GetAllMapPoints();
+
+        // Retrieve all keyframes
+        KeyFramesType GetAllKeyFrames();
+
+        // Retrieve active map points
+        MapPointsType GetActiveMapPoints();
+
+        // Retrieve active keyframes
+        KeyFramesType GetActiveKeyFrames();
+
+    public:
+        std::mutex map_update_mutex_; // Mutex for thread-safe map updates
 
     private:
-        void RemoveOldKeyframe();
-
         std::mutex data_mutex_;
-        LandmarksType landmarks_;        // all landmarks
-        LandmarksType active_landmarks_; // active landmarks
-        KeyframesType keyframes_;        // all key-frames
-        KeyframesType active_keyframes_; // all key-frames
+        std::mutex outlier_map_point_mutex_;
 
-        Frame::Ptr current_frame_ = nullptr;
+        std::shared_ptr<KeyFrame> current_keyframe_ = nullptr;
 
-        // settings
-        int num_active_keyframes_ = 7;
-    };
-} // namespace tedvslam
+        MapPointsType all_map_points_;
+        MapPointsType active_map_points_;
+        std::list<unsigned long> outlier_map_points_;
 
+        KeyFramesType all_keyframes_;
+        KeyFramesType active_keyframes_;
+
+        int num_active_keyframes_;
+    }; // namespace tedvslam
+}
 #endif // MAP_H

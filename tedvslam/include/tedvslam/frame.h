@@ -9,54 +9,44 @@
 namespace tedvslam
 {
 
-    // forward declare
-    struct MapPoint;
-    struct Feature;
+    // Forward declaration
+    class Feature;
 
-    /// @brief Frame
-    struct Frame
+    class Frame
     {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        typedef std::shared_ptr<Frame> Ptr;
+        using Ptr = std::shared_ptr<Frame>;
+        Frame(const cv::Mat &left_img, const cv::Mat &right_img, double timestamp);
 
-        unsigned long id_ = 0;          // id of this frame
-        unsigned long keyframe_id_ = 0; // id of key frame
-        bool is_keyframe_ = false;      // flag for key frame
-        double time_stamp_;             // timestamp (not used?)
-        SE3 pose_;                      // Tcw, Pose
-        std::mutex pose_mutex_;         // Pose lock
-        cv::Mat left_img_, right_img_;  // stereo images
+        Frame() = default;
+        static Ptr Create();
+        static Ptr Create(const cv::Mat &left_img, const cv::Mat &right_img, double timestamp);
 
-        // extracted features in left image
+        void SetPose(const SE3 &pose);
+
+        // Sets the relative pose to the reference keyframe.
+        void SetRelativePose(const SE3 &relative_pose);
+
+        SE3 Pose() const;
+
+        SE3 RelativePose() const;
+
+    public:
+        unsigned long frame_id_;
+        double timestamp_;
+
+        cv::Mat left_img_, right_img_;
+
         std::vector<std::shared_ptr<Feature>> features_left_;
-        // corresponding features in right image, set to nullptr if no corresponding
         std::vector<std::shared_ptr<Feature>> features_right_;
 
-    public: // data members
-        Frame() {}
+    private:
+        SE3 pose_;          // Used for the viewer.
+        SE3 relative_pose_; // Used for tracking.
 
-        Frame(long id, double time_stamp, const SE3 &pose, const Mat &left,
-              const Mat &right);
-
-        // set and get pose, thread safe
-        SE3 Pose()
-        {
-            std::unique_lock<std::mutex> lck(pose_mutex_);
-            return pose_;
-        }
-
-        void SetPose(const SE3 &pose)
-        {
-            std::unique_lock<std::mutex> lck(pose_mutex_);
-            pose_ = pose;
-        }
-
-        /// set keyframe and id
-        void SetKeyFrame();
-
-        /// factory pattern, give id to frame
-        static std::shared_ptr<Frame> CreateFrame();
+        mutable std::mutex pose_mutex_;
+        mutable std::mutex relative_pose_mutex_;
     };
 
 } // namespace tedvslam

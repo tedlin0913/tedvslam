@@ -8,8 +8,8 @@
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h> // For logging to files
-
-DEFINE_string(config_file, "/home/ted/dev/tedvslam/tedvslam/config/default.yaml", "config file path");
+// Assume in build/app
+DEFINE_string(config_file, "../../config/default.yaml", "config file path");
 
 int main(int argc, char **argv)
 {

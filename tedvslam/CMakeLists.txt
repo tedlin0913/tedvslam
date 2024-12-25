@@ -61,7 +61,7 @@ find_package(fmt REQUIRED)
 find_package(Pangolin REQUIRED)
 include_directories(${Pangolin_INCLUDE_DIRS})
 
-include_directories(${CMAKE_CURRENT_LIST_DIR}/3rdParty/DBoW2/include)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/external/DBoW2/include)
 
 include(FetchContent)
 
@@ -83,17 +83,25 @@ FetchContent_MakeAvailable(fast_csv)
 add_library(${PROJECT_NAME}
 SHARED
   # src/main.cpp
-  src/frontend.cpp
-  src/backend.cpp
+  src/ORBextractor.cpp
   src/config.cpp
   src/feature.cpp
   src/dataset.cpp
-  src/map.cpp
-  src/viewer.cpp
-  src/mappoint.cpp
-  src/visual_odometry.cpp
   src/frame.cpp
+  src/mappoint.cpp
+  
+  src/keyframe.cpp
   src/camera.cpp
+  src/map.cpp
+
+
+  src/frontend.cpp
+  src/backend.cpp
+  src/viewer.cpp
+
+  src/visual_odometry.cpp
+
+
 )
 
 target_include_directories(${PROJECT_NAME} 
