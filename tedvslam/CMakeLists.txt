@@ -82,8 +82,6 @@ FetchContent_MakeAvailable(fast_csv)
 
 add_library(${PROJECT_NAME}
 SHARED
-  # src/main.cpp
-  src/ORBextractor.cpp
   src/config.cpp
   src/feature.cpp
   src/dataset.cpp

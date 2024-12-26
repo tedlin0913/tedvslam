@@ -12,49 +12,16 @@ namespace tedvslam
     Backend::Backend()
     {
         is_running_.store(true);
-        // request_pause_.store(true);
-        // is_paused_.store(true);
 
         backend_thread_ = std::thread(std::bind(&Backend::RunBackend, this));
     }
 
-    // void Backend::InsertKeyFrame(const std::shared_ptr<KeyFrame> &keyframe)
-    // {
-    //     spdlog::info("Insert keyframe backend");
-    //     std::unique_lock<std::mutex> lck(new_keyframe_mutex_);
-    //     new_keyframes_.push_back(keyframe);
-
-    //     // need active map optimization when there is a new KF inserted
-    //     need_optimization_ = true;
-    //     spdlog::info("DONE Insert keyframe backend");
-    //     UpdateMap();
-    // }
-
     void Backend::UpdateMap()
     {
-        // {
-        //     // We set some variable that indicates “there is new data”
-        //     std::unique_lock<std::mutex> lock(new_keyframe_mutex_);
-        //     new_data_available_ = true;
-        // }
+
         std::unique_lock<std::mutex> lock(new_keyframe_mutex_);
         map_update_.notify_one();
     }
-
-    // void Backend::RequestPause()
-    // {
-    //     request_pause_.store(true);
-    // }
-
-    // bool Backend::IsPaused() const
-    // {
-    //     return (request_pause_.load()) && (is_paused_.load());
-    // }
-
-    // void Backend::Resume()
-    // {
-    //     request_pause_.store(false);
-    // }
 
     void Backend::Stop()
     {
@@ -72,75 +39,7 @@ namespace tedvslam
             map_update_.wait(lock);
             OptimizeActiveMap();
         }
-
-        // while (is_running_.load())
-        // {
-        //     // std::unique_lock<std::mutex> lock(new_keyframe_mutex_);
-
-        //     while (CheckNewKeyFrames())
-        //     {
-        //         spdlog::info("CHECK NEW KEYFRAME");
-        //         ProcessNewKeyFrame();
-        //     }
-
-        //     // if the loopclosing thread asks backend to pause
-        //     // this will make sure that the backend will pause in this position, having processed all new KFs in the list
-        //     while (request_pause_.load())
-        //     {
-        //         is_paused_.store(true);
-        //         std::this_thread::sleep_for(std::chrono::microseconds(1000));
-        //     }
-
-        //     is_paused_.store(false);
-
-        //     if (!CheckNewKeyFrames() && need_optimization_)
-        //     {
-        //         OptimizeActiveMap();
-        //         need_optimization_ = false; // this will become true when next new KF is inserted
-        //     }
-
-        //     std::this_thread::sleep_for(std::chrono::microseconds(1000));
-
-        // // Wait until we either have new data or the system is told to stop
-        // map_update_.wait(lock, [&]()
-        //                  { return !backend_running_.load() || new_data_available_; });
-
-        // if (!backend_running_.load())
-        // {
-        //     // If we are stopping, break out of the loop
-        //     spdlog::warn("====STOP BACKEND====");
-        //     // lock.unlock();
-        //     break;
-        // }
-
-        // new_data_available_ = false;
-        // lock.unlock();
-        // // map_update_.wait(lock);
-
-        // /// backend only optimize active keyframe and mappoints
-        // Map::KeyframesType active_kfs = map_->GetActiveKeyFrames();
-        // Map::LandmarksType active_landmarks = map_->GetActiveMapPoints();
-        // spdlog::info("Active keyframes: {}, Active landmarks: {}",
-        //              active_kfs.size(), active_landmarks.size());
-        // Optimize(active_kfs, active_landmarks);
     }
-
-    // bool Backend::CheckNewKeyFrames()
-    // {
-    //     std::unique_lock<std::mutex> lck(new_keyframe_mutex_);
-    //     return (!new_keyframes_.empty());
-    // }
-
-    // void Backend::ProcessNewKeyFrame()
-    // {
-    //     {
-    //         std::unique_lock<std::mutex> lck(new_keyframe_mutex_);
-    //         current_keyframe_ = new_keyframes_.front();
-    //         new_keyframes_.pop_front();
-    //     }
-
-    //     map_->InsertKeyFrame(current_keyframe_);
-    // }
 
     void Backend::OptimizeActiveMap()
     {
@@ -285,17 +184,13 @@ namespace tedvslam
                     optimizer.addEdge(edge);
                     index++;
                 }
-                // else
-                // {
-                //     delete edge;
-                // }
             }
         }
         spdlog::info("DONE OBS");
         // do optimization and eliminate the outliers
 
         int cnt_outlier = 0, cnt_inlier = 0;
-        for (int iteration = 0; iteration < 2; ++iteration)
+        for (int iteration = 0; iteration < 5; ++iteration)
         {
             spdlog::info("START OPTIMIZE");
             optimizer.initializeOptimization();

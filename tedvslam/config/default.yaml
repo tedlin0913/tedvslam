@@ -61,23 +61,23 @@ Camera1.DistortionCoeffs: [-0.28368365,  0.07451284, -0.00010473, -3.55590700e-0
 #--------------------------------------------------------------------------------------------
 
 # valid feature numbers to decide the tracking / init status
-numFeatures.initGood: 300
-numFeatures.trackingGood: 50
+numFeatures.initGood: 500
+numFeatures.trackingGood: 40
 numFeatures.trackingBad: 10
 
 # ORB Extractor: Number of features when initalizing
-ORBextractor.nInitFeatures: 300
+ORBextractor.nInitFeatures: 500
 # ORB Extractor: Number of new features to detect when needs to create a new KF
 ORBextractor.nNewFeatures: 100
 # ORB Extractor: Scale factor between levels in the scale pyramid 	
 ORBextractor.scaleFactor: 1.2
 # ORB Extractor: Number of levels in the scale pyramid	
-ORBextractor.nLevels: 8
+ORBextractor.nLevels: 4
 # ORB Extractor: Fast threshold
 # Image is divided in a grid. At each cell FAST are extracted imposing a minimum response.
 # Firstly we impose iniThFAST. If no corners are detected we impose a lower value minThFAST
 # You can lower these values if your images have low contrast			
-ORBextractor.iniThFAST: 20
+ORBextractor.iniThFAST: 10
 ORBextractor.minThFAST: 7
 
 

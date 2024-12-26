@@ -13,7 +13,6 @@
 #include "tedvslam/map.h"
 #include "tedvslam/backend.h"
 #include "tedvslam/config.h"
-#include "tedvslam/ORBextractor.h"
 #include "tedvslam/viewer.h"
 #include "tedvslam/camera.h"
 #include "tedvslam/keyframe.h"
@@ -74,11 +73,6 @@ namespace tedvslam
             backend_ = backend;
         }
 
-        void SetORBextractor(std::shared_ptr<ORBextractor> orb)
-        {
-            orb_extractor_ = orb;
-        }
-
         FrontendStatus GetStatus() const
         {
             return status_;
@@ -123,7 +117,6 @@ namespace tedvslam
         // Reset
         bool Reset();
 
-        std::shared_ptr<ORBextractor> orb_extractor_, orb_extractor_init_;
         std::shared_ptr<Camera> camera_left_, camera_right_;
         std::shared_ptr<Map> map_;
         std::shared_ptr<Backend> backend_;

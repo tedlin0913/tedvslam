@@ -12,7 +12,6 @@ namespace tedvslam
         static unsigned long factory_id = 0;
         keyframe_id_ = factory_id++;
 
-        // Copy members from Frame
         frame_id_ = frame->frame_id_;
         // timestamp_ = frame->timestamp_;
         image_left_ = frame->left_img_;

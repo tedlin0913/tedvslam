@@ -21,20 +21,10 @@ namespace tedvslam
         /// constructor with config file
         VisualOdometry(std::string &config_path);
 
-        /**
-         * do initialization things before run
-         * @return true if success
-         */
         bool Init();
 
-        /**
-         * start vo in the dataset
-         */
         void Run();
 
-        /**
-         * Make a step forward in dataset
-         */
         bool Step();
 
         void DrawFrame(Frame::Ptr frame, const float *color);
@@ -61,19 +51,6 @@ namespace tedvslam
 
         // dataset
         Dataset::Ptr dataset_ = nullptr;
-        // std::mutex viewer_data_mutex_;
-
-        // Frame::Ptr current_frame_ = nullptr;
-        // Map::Ptr map_ = nullptr;
-
-        // // std::thread viewer_thread_;
-        // bool viewer_running_ = true;
-
-        // std::unordered_map<unsigned long, Frame::Ptr> active_keyframes_;
-        // std::unordered_map<unsigned long, MapPoint::Ptr> active_landmarks_;
-        // bool map_updated_ = false;
-
-        // std::mutex viewer_data_mutex_;
     };
 } // namespace tedvslam
 

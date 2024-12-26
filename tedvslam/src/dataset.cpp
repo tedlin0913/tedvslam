@@ -35,11 +35,6 @@ namespace tedvslam
 
                 Sophus::SE3d se3(Sophus::SO3d(Rcw), Tcw);
 
-                // Vec3 t;
-                // t << data[3], data[7], data[11];
-                // t = K.inverse() * t;
-                // K = K * 0.5;
-
                 double fx = intrins[0];
                 double fy = intrins[1];
                 double cx = intrins[2];
@@ -112,9 +107,6 @@ namespace tedvslam
                     spdlog::error("Cannot find image: {}", filename);
                     return nullptr;
                 }
-
-                // cv::Mat image_resized;
-                // cv::resize(image, image_resized, cv::Size(), 1, 1, cv::INTER_NEAREST);
 
                 if (cam_id == 0)
                     new_frame->left_img_ = image;

@@ -49,30 +49,9 @@ namespace tedvslam
         std::mutex viewer_data_mutex_;
 
     private:
-        // void DrawFrame(Frame::Ptr frame, const float *color);
-
-        // void DrawMapPoints();
-
-        // void FollowCurrentFrame(pangolin::OpenGlRenderState &vis_camera);
-
-        // /// plot the features in current frame into an image
-        // cv::Mat PlotFrameImage();
-
         Frame::Ptr current_frame_ = nullptr;
         Map::Ptr map_ = nullptr;
-
-        // std::thread viewer_thread_;
-        // bool viewer_running_ = true;
-
-        // std::unordered_map<unsigned long, Frame::Ptr> active_keyframes_;
-        // std::unordered_map<unsigned long, MapPoint::Ptr> active_landmarks_;
         bool map_updated_ = false;
-
-        // pangolin::OpenGlRenderState vis_camera_;
-        // pangolin::View &vis_display_;
-        // std::shared_ptr<pangolin::View> vis_display_;
-        // pangolin::View *vis_display_; // Use raw pointer
-        // const float green[3] = {0, 1, 0};
     };
 } // namespace tedvslam
 

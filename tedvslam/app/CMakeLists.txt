@@ -1,2 +1,2 @@
-add_executable(app run_kitti_stereo.cpp)
+add_executable(app run_vo.cpp)
 target_link_libraries(app tedvslam)

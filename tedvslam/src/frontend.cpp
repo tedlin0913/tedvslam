@@ -12,12 +12,12 @@ namespace tedvslam
         num_features_tracking_bad_ = Config::Get<int>("numFeatures.trackingBad").value_or(0);
 
         int num_init_features = Config::Get<int>("ORBextractor.nInitFeatures").value_or(0);
-        float scale_factor = Config::Get<float>("ORBextractor.scaleFactor").value_or(0.0);
-        int num_levels = Config::Get<int>("ORBextractor.nLevels").value_or(0);
+        float scale_factor = Config::Get<float>("ORBextractor.scaleFactor").value_or(1.6);
+        int num_levels = Config::Get<int>("ORBextractor.nLevels").value_or(12);
         int ini_fast_thr = Config::Get<int>("ORBextractor.iniThFAST").value_or(0);
         int min_fast_thr = Config::Get<int>("ORBextractor.minThFAST").value_or(0);
 
-        need_undistortion_ = Config::Get<int>("Camera.bNeedUndistortion").value_or(0);
+        need_undistortion_ = Config::Get<int>("Camera.bNeedUndistortion").value_or(1);
 
         std::vector<float> coeffs0 = Config::Get<std::vector<float>>("Camera0.DistortionCoeffs").value_or(std::vector<float>{0.0, 0.0, 0.0, 0.0});
 
@@ -40,15 +40,22 @@ namespace tedvslam
         // Log distortion coefficients for Camera1
         spdlog::info("Camera1 Distortion Coefficients: {}", fmt::join(coeffs1, ", "));
 
-        orb_extractor_init_ = std::make_shared<ORBextractor>(
-            num_init_features, scale_factor, num_levels, ini_fast_thr, min_fast_thr);
-
         // // TODO: add orbfeatures?
         gftt_ =
             cv::GFTTDetector::create(Config::Get<int>("num_features").value_or(0), 0.01, 20);
         num_features_init_ = Config::Get<int>("num_features_init").value_or(0);
 
-        orb_ = cv::ORB::create(Config::Get<int>("num_features").value_or(0));
+        orb_ = cv::ORB::create(
+            Config::Get<int>("num_features").value_or(0), // Number of features
+            scale_factor,                                 // Scale factor
+            num_levels,                                   // Number of levels
+            31,                                           // Edge threshold (default: 31)
+            0,                                            // First level (default: 0)
+            2,                                            // WTA_K (default: 2)
+            cv::ORB::HARRIS_SCORE,                        // Score type (default: HARRIS_SCORE)
+            31,                                           // Patch size (default: 31)
+            ini_fast_thr                                  // FAST threshold
+        );
         relative_motion_ = Sophus::SE3d();
         // num_features_ = Config::Get<int>("num_features");
         // spdlog::info("Features init: {}", num_features_init_);
@@ -75,8 +82,6 @@ namespace tedvslam
         }
 
         {
-            // avoid conflict between frontend and loop correction
-            // std::unique_lock<std::mutex> lock(map_->map_update_mutex_);
 
             switch (status_)
             {
@@ -121,12 +126,14 @@ namespace tedvslam
         tracking_inliers_ = EstimateCurrentPose();
         spdlog::info("TRACKING INLIERS: {}", tracking_inliers_);
 
+        relative_motion_ = current_frame_->RelativePose() * last_frame_->RelativePose().inverse();
         // Three status according to settings.
         if (tracking_inliers_ > num_features_tracking_good_)
         {
             // tracking good
             spdlog::info("====TRACKING GOOD====");
             status_ = FrontendStatus::TRACKING_GOOD;
+            // InsertKeyFrame();
         }
         else if (tracking_inliers_ > num_features_tracking_bad_)
         {
@@ -134,6 +141,10 @@ namespace tedvslam
             // tracking bad
             spdlog::warn("====TRACKING BAD====");
             status_ = FrontendStatus::TRACKING_BAD;
+            DetectFeatures();
+            FindFeaturesInRight();
+            TriangulateNewPoints();
+            InsertKeyFrame();
         }
         else
         {
@@ -143,16 +154,10 @@ namespace tedvslam
         }
 
         // InsertKeyFrame();
-        relative_motion_ = current_frame_->RelativePose() * last_frame_->RelativePose().inverse();
 
-        if (status_ == FrontendStatus::TRACKING_BAD)
-        {
-
-            DetectFeatures();
-            FindFeaturesInRight();
-            TriangulateNewPoints();
-            InsertKeyFrame();
-        }
+        // if (status_ == FrontendStatus::TRACKING_BAD)
+        // {
+        // }
 
         if (viewer_)
         {
@@ -491,32 +496,6 @@ namespace tedvslam
         }
         spdlog::info("Detect {} new features", cnt_detected);
         return cnt_detected;
-        // cv::Mat mask(current_frame_->left_img_.size(), CV_8UC1, 255);
-        // for (auto &feat : current_frame_->features_left_)
-        // {
-        //     cv::rectangle(mask, feat->keypoint_.pt - cv::Point2f(20, 20),
-        //                   feat->keypoint_.pt + cv::Point2f(20, 20), 0, cv::FILLED);
-        // }
-
-        // std::vector<cv::KeyPoint> keypoints;
-        // if (status_ == FrontendStatus::INITING)
-        // {
-        //     orb_extractor_init_->Detect(current_frame_->left_img_, mask, keypoints);
-        // }
-        // else
-        // {
-        //     orb_extractor_->Detect(current_frame_->left_img_, mask, keypoints);
-        // }
-
-        // int cnt_detected = 0;
-        // for (auto &kp : keypoints)
-        // {
-        //     current_frame_->features_left_.push_back(
-        //         Feature::Create(kp));
-        //     cnt_detected++;
-        // }
-        // spdlog::info("Find: {} in LEFT", cnt_detected);
-        // return cnt_detected;
     }
 
     int Frontend::FindFeaturesInRight()
@@ -671,16 +650,7 @@ namespace tedvslam
         current_frame_->SetRelativePose(Sophus::SE3d::exp(se3_zero));
         SetObservationsForKeyFrame();
         map_->InsertKeyFrame(newKF);
-        // 這個時候插入一個keyframe然後接後端BA
-        // InsertKeyFrame();
         backend_->UpdateMap();
-        // if (backend_)
-        // {
-        //     spdlog::info("==== BACKEND Insert key frame ====");
-        //     backend_->InsertKeyFrame(newKF);
-        // }
-        // if (viewer_)
-        //     viewer_->UpdateMap();
 
         spdlog::info("Initial map created with:{} map points", cnt_init_landmarks);
 
@@ -710,34 +680,11 @@ namespace tedvslam
 
         current_frame_->SetRelativePose(Sophus::SE3d::exp(se3_zero));
 
-        // if (tracking_inliers_ >= num_features_needed_for_keyframe_)
-        // {
-        //     spdlog::info("still have enough features, don't insert keyframe");
-        //     return false;
-        // }
-        // // current frame is a new keyframe
-        // current_frame_->SetKeyFrame();
-        spdlog::info("insert map");
         map_->InsertKeyFrame(newKF);
 
-        // spdlog::info("Set frame {} as KF {}", current_frame_->id_, newKF->keyframe_id_);
-        // // rclcpp::RCLCPP_INFO(rclcpp::get_logger("global_logger"), "Set frame %d as keyframe %d",
-        // // current_frame_->id_, current_frame_->keyframe_id_);
-        spdlog::info("keep going");
-
-        // DetectFeatures(); // detect new features
         SetObservationsForKeyFrame();
-        // // // track in right image
-        // FindFeaturesInRight();
-        // // // triangulate map points
-        // TriangulateNewPoints();
-        // // update backend because we have a new keyframe
+
         backend_->UpdateMap();
-        // if (backend_)
-        // {
-        //     spdlog::info("==== BACKEND Insert key frame ====");
-        //     backend_->InsertKeyFrame(newKF);
-        // }
 
         return true;
     }
@@ -748,4 +695,4 @@ namespace tedvslam
         return true;
     }
 
-} // namespace myslam
+} // namespace tedvslam

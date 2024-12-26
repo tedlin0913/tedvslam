@@ -196,7 +196,7 @@ namespace tedvslam
             std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
         spdlog::info("VO cost time: {} seconds.", time_used.count());
         // 300ms = 10fps
-        std::this_thread::sleep_for(std::chrono::microseconds(30000));
+        std::this_thread::sleep_for(std::chrono::microseconds(50000));
         // LOG(INFO) << "VO cost time: " << time_used.count() << " seconds.";
         return success;
     }
@@ -303,28 +303,5 @@ namespace tedvslam
         glEnd();
         glPopMatrix();
     }
-
-    // void VisualOdometry::DrawMapPoints()
-    // {
-    //     // Draw the active frames
-    //     spdlog::info("Start Draw Map points");
-    //     const float red[3] = {1.0, 0, 0};
-    //     for (auto &kf : viewer_->active_keyframes)
-    //     {
-    //         DrawFrame(kf.second, red);
-    //     }
-
-    //     // Draw map points
-    //     glPointSize(5);
-    //     glBegin(GL_POINTS);
-    //     for (auto &landmark : viewer_->active_landmarks)
-    //     {
-    //         auto pos = landmark.second->Pos();
-    //         glColor3f(red[0], red[1], red[2]);
-    //         glVertex3d(pos[0], pos[1], pos[2]);
-    //     }
-    //     glEnd();
-    //     spdlog::info("End Draw Map points");
-    // }
 
 } // namespace myslam
